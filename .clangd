@@ -1,0 +1,33 @@
+If:
+  PathMatch: 
+    - .*\.cpp
+    - .*\.h
+CompileFlags:
+  Compiler: aarch64-linux-gnu-g++
+  Add:
+    - -std=c++20
+    - -I/home/sgsg/android-ndk-r27c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android 
+    - -I/home/sgsg/ebpf/libunwindstack/libunwindstack/include
+    - -D__TARGET_ARCH_arm64
+    - -Wall --static
+
+Diagnostics:
+  UnusedIncludes: None
+  ClangTidy:
+    Add: [ "performance-*"]
+    Remove: 
+      - readability-*
+      - google-*
+      - hicpp-*
+
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+  Designators: Yes
+
+Hover:
+  ShowAKA: Yes
+
+Completion:
+  AllScopes: Yes
