@@ -7,3 +7,8 @@ svc_test
 
 # Go build cache
 .cache/
+
+# Environment configuration
+env.sh
+*.env
+.env*
