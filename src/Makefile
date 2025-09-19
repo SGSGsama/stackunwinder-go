@@ -23,7 +23,7 @@ stackHelp.so: $(stack_src)
 .PHONY: clean
 clean:
 	rm -f stackHelp.so
-	rm -f $(wildcard stackunwinder/probes__bpfel.*)
+	rm -f $(wildcard stackunwinder/bpfloader/probes__bpfel.*)
 	rm -f $(APP)
 	rm -f linker/libwrapper.a
 	rm -f linker/wrapper.o
@@ -31,7 +31,7 @@ clean:
 BPF_CLANG:=$(TC)/aarch64-linux-android35-clang
 BPF_CFLAGS:=-O2 -g -target bpf
 
-BPF_SKEL:=stackunwinder/probes__bpfel.go
+BPF_SKEL:=stackunwinder/bpfloader/probes__bpfel.go
 
 $(BPF_SKEL): $(wildcard kernel/*.c)
 	@echo "=== Generating BPF Go bindings ==="
@@ -39,12 +39,13 @@ $(BPF_SKEL): $(wildcard kernel/*.c)
 	@echo "Using BPF_CFLAGS: $(BPF_CFLAGS)"
 	cd stackunwinder && \
 	go run github.com/cilium/ebpf/cmd/bpf2go \
-	-go-package stackunwinder \
+	-go-package bpfloader \
 	-target bpfel \
 	-cc "$(BPF_CLANG)" \
 	-cflags "$(BPF_CFLAGS)" \
 	-type sysEnterData_noStack \
-	probes_ ../kernel/probes.c
+	Probes_ ../kernel/probes.c
+	mv stackunwinder/probes_* stackunwinder/bpfloader/
 	cd ..
 	@echo "=== BPF Go bindings generated successfully ==="
 
@@ -55,7 +56,7 @@ linker/libwrapper.o: linker/wrapper.c linker/wrapper.h
 linker/libwrapper.a: linker/wrapper.o
 	$(AR) rcs $@ linker/wrapper.o
 
-GONEED:= main.go $(wildcard stackunwinder/*.go)
+GONEED:= main.go $(wildcard stackunwinder/*.go) $(wildcard stackunwinder/*/*.go)
 
 
 $(APP): linker/libwrapper.a $(GONEED) $(BPF_SKEL) stackHelp.so 
