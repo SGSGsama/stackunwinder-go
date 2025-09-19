@@ -1,7 +1,6 @@
 # Compiled binaries
 stackunwinder-go
 svc_test
-test
 
 # Debug files
 *.dSYM/
