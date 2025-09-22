@@ -1,7 +1,12 @@
 # Compiled binaries
 stackunwinder-go
 svc_test
-
+stackHelp.so
+probes__bpfel.o
+src/stackunwinder-go
+src/stackHelp.so
+src/stackunwinder/bpfloader/probes__bpfel.go
+src/stackunwinder/bpfloader/probes__bpfel.o
 # Debug files
 *.dSYM/
 
