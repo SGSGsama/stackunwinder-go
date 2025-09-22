@@ -56,11 +56,16 @@ Options:
 	validateRequiredFlags()
 
 	debug.SetDebugMode(IsDebug)
+	debug.Debug("TargetPid: %d\n", TargetPid)
+	debug.Debug("TargetSyscall: %s\n", TargetSyscall)
+	debug.Debug("TargetLib: %s\n", TargetLib)
+	debug.Debug("EnableStackUnwind: %v\n", EnableStackUnwind)
+	debug.Debug("UprobeSetting: %s\n", UprobeSetting)
 }
 func SetSysEnterSettings() {
 	filters.SetTargetLib(uint32(TargetPid), strings.Split(TargetLib, ","))
 	filters.SetTargetSyscall(strings.Split(TargetSyscall, ","))
-	bpfloader.ProbeObjs.TargetPid.Set(uint32(TargetPid))
+	bpfloader.BpfVar.TargetPid.Set(uint32(TargetPid))
 }
 func validateRequiredFlags() {
 	if TargetPid == 0 {

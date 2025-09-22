@@ -1,4 +1,5 @@
 package filters
+
 // 过滤特定syscall
 import (
 	"log"
@@ -15,7 +16,7 @@ func SetTargetSyscall(syscalls []string) {
 			log.Fatalf("Syscall %s not found in syscallMap", syscall)
 		}
 		debug.Debug("Setting target syscall: %s with index: %d\n", syscall, index)
-		err := bpfloader.ProbeObjs.Probes_Maps.TargetSyscalls.Put(uint32(index), true)
+		err := bpfloader.SysEnterObj.TargetSyscalls.Put(uint32(index), true)
 		if err != nil {
 			log.Fatalf("Error updating targetSyscalls map for syscall %s: %v", syscall, err)
 		}

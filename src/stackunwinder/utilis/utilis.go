@@ -95,29 +95,29 @@ func PrintUnkBytes(data []uint8, len int, tag string) string {
 // }
 
 func PrintSyscallInfo(data *bpfloader.Probes_SysEnterDataNoStack) { // 几个常用的syscall手动设置下打印格式
-	ProbeObjs := bpfloader.ProbeObjs
+	ProbeVar := bpfloader.BpfVar
 
 	fmt.Printf("[pc: %x sp: %x tid: %d]", data.Pc, data.Sp, data.Tid)
 	switch data.SyscallId {
-	case getSyscallId(ProbeObjs.Probes_Variables.OPENAT):
+	case getSyscallId(ProbeVar.OPENAT):
 		fmt.Printf("[openat] dfd: %d, filename(addr: %x): %s, flags: 0x%x, mode: 0x%x\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[2], data.Regs[3])
-	case getSyscallId(ProbeObjs.Probes_Variables.READ):
+	case getSyscallId(ProbeVar.READ):
 		fmt.Printf("[read] fd: %d, buf(addr: %x), count: %d\n", data.Regs[0], data.Regs[1], data.Regs[2])
 		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[read] buf:"))
-	case getSyscallId(ProbeObjs.Probes_Variables.WRITE):
+	case getSyscallId(ProbeVar.WRITE):
 		fmt.Printf("[write] fd: %d, buf(addr: %x), count: %d\n", data.Regs[0], data.Regs[1], data.Regs[2])
 		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[write] buf:"))
-	case getSyscallId(ProbeObjs.Probes_Variables.PREAD64):
+	case getSyscallId(ProbeVar.PREAD64):
 		fmt.Printf("[pread64] fd: %d, buf(addr: %x), count: %d, offset: 0x%x\n", data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3])
 		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pread64] buf:"))
-	case getSyscallId(ProbeObjs.Probes_Variables.PWRITE64):
+	case getSyscallId(ProbeVar.PWRITE64):
 		fmt.Printf("[pwrite64] fd: %d, buf(addr: %x), count: %d, offset: 0x%x\n", data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3])
 		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pwrite64] buf:"))
-	case getSyscallId(ProbeObjs.Probes_Variables.READLINKAT):
+	case getSyscallId(ProbeVar.READLINKAT):
 		fmt.Printf("[readlinkat] dfd: %d, pathname(addr: %x): %s, buf(addr: %x), buflen: %d\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[2], data.Regs[3])
-	case getSyscallId(ProbeObjs.Probes_Variables.NEWFSTATAT):
+	case getSyscallId(ProbeVar.NEWFSTATAT):
 		fmt.Printf("[newfstatat] dfd: %d, pathname(addr: %x): %s, statbuf(addr: %x), flags: 0x%x\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[2], data.Regs[3])
-	case getSyscallId(ProbeObjs.Probes_Variables.PTRACE):
+	case getSyscallId(ProbeVar.PTRACE):
 		commPath := fmt.Sprintf("/proc/%d/cmdline", data.Regs[1])
 		tmp, err := os.ReadFile(commPath)
 		var comm string
@@ -127,17 +127,17 @@ func PrintSyscallInfo(data *bpfloader.Probes_SysEnterDataNoStack) { // 几个常
 			comm = string(tmp)
 		}
 		fmt.Printf("[ptrace] request: %d, pid: %d [%s], addr: %x, data: %x\n", data.Regs[0], data.Regs[1], comm, data.Regs[2], data.Regs[3])
-	case getSyscallId(ProbeObjs.Probes_Variables.CLONE):
+	case getSyscallId(ProbeVar.CLONE):
 		fmt.Printf("[clone] flags: 0x%x, newsp: %x\n", data.Regs[0], data.Regs[1])
-	case getSyscallId(ProbeObjs.Probes_Variables.EXECVE):
+	case getSyscallId(ProbeVar.EXECVE):
 		fmt.Printf("[execve] filename(addr: %x): %s\n", data.Regs[0], data.ArgBuf[0])
-	case getSyscallId(ProbeObjs.Probes_Variables.GETRANDOM):
+	case getSyscallId(ProbeVar.GETRANDOM):
 		fmt.Printf("[getrandom] buf(addr: %x), buflen: %d, flags: 0x%x\n", data.Regs[0], data.Regs[1], data.Regs[2])
-	case getSyscallId(ProbeObjs.Probes_Variables.EXECVEAT):
+	case getSyscallId(ProbeVar.EXECVEAT):
 		fmt.Printf("[execveat] dfd: %d, filename(addr: %x): %s, flags: 0x%x\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[4])
-	case getSyscallId(ProbeObjs.Probes_Variables.CLONE3):
+	case getSyscallId(ProbeVar.CLONE3):
 		fmt.Printf("[clone3] uargs(addr: %x), size: %d\n", data.Regs[0], data.Regs[1])
-	case getSyscallId(ProbeObjs.Probes_Variables.OPENAT2):
+	case getSyscallId(ProbeVar.OPENAT2):
 		fmt.Printf("[openat2] dfd: %d, filename(addr: %x): %s\n", data.Regs[0], data.Regs[1], data.ArgBuf[0])
 	default:
 		fmt.Printf("[syscall] id: 0x%x, x0: 0x%x, x1: 0x%x, x2: 0x%x, x3: 0x%x, x4: 0x%x, x5: 0x%x\n", data.SyscallId, data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3], data.Regs[4], data.Regs[5])

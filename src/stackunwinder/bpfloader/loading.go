@@ -13,15 +13,15 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 )
 
-var ProbeObjs *Probes_Objects = &Probes_Objects{} // save the probes objects globally
-var SysEnterTp link.Link = nil                    // 用于跟踪sys_enter的附加点
-var SysEnterRb *ringbuf.Reader = nil              // 用于读取sys_enter的ringbuf
-var UprobesCommon = []link.Link{}                 // 用于跟踪uprobeCommon的附加点
-var UprobeCommonRb *ringbuf.Reader = nil          // 用于读取uprobe追踪数据的ringbuf
-func LoadBpfObjs() {
-	if err := rlimit.RemoveMemlock(); err != nil { // remove kernel memory lock limit
-		log.Fatal(err)
-	}
+var BpfVar *Probes_Variables = &Probes_Variables{}                  // save the bpf variable specs globally
+var SysEnterObj *sysEnterObjsType = &sysEnterObjsType{}             // 保存sys_enter相关的program和map对象
+var SysEnterTp link.Link = nil                                      // 用于跟踪sys_enter的附加点
+var SysEnterRb *ringbuf.Reader = nil                                // 用于读取sys_enter的ringbuf
+var UprobeCommonObj *uprobeCommonObjsType = &uprobeCommonObjsType{} // 保存uprobeCommon相关的program和map对象
+var UprobesCommon = []link.Link{}                                   // 用于跟踪uprobeCommon的附加点
+var UprobeCommonRb *ringbuf.Reader = nil                            // 用于读取uprobe追踪数据的ringbuf
+var spec *ebpf.CollectionSpec = nil                                 // 保存从BPF对象文件加载的规范
+func getDebugOptForLoad() *ebpf.CollectionOptions {
 	var opts *ebpf.CollectionOptions
 	if debug.IsDebug {
 		opts = &ebpf.CollectionOptions{
@@ -33,20 +33,29 @@ func LoadBpfObjs() {
 	} else {
 		opts = nil
 	}
-	if err := LoadProbes_Objects(ProbeObjs, opts); err != nil {
+	return opts
+}
+
+func DoCommonBpfInit() { //加载bpf变量并解锁内存限制，，初始化bpf_spec,这里开销很小，直接做就行
+	if err := rlimit.RemoveMemlock(); err != nil { // remove kernel memory lock limit
+		log.Fatal(err)
+	}
+
+	var err error
+	spec, err = LoadProbes_()
+	if err != nil {
+		log.Fatalf("loading spec: %v", err)
+	}
+	if err := LoadProbes_Objects(BpfVar, getDebugOptForLoad()); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
-}
-func CloseBpfObjs() {
-	if ProbeObjs != nil {
-		ProbeObjs.Close()
-		ProbeObjs = nil
-	}
+	debug.Debug("bpf var loaded\n")
 }
 
 func AttachTp_sysEnter() {
 	var err error
-	SysEnterTp, err = link.AttachTracing(link.TracingOptions{Program: ProbeObjs.SysEnter, AttachType: ebpf.AttachTraceRawTp}) // attach to sys_enter
+	spec.LoadAndAssign(SysEnterObj, getDebugOptForLoad())
+	SysEnterTp, err = link.AttachTracing(link.TracingOptions{Program: SysEnterObj.SysEnter, AttachType: ebpf.AttachTraceRawTp}) // attach to sys_enter
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,6 +94,7 @@ type InlineHookSetting struct {
 // libsec.so+0x1234 [x0:int,x1:str,....];...
 // libsec.so:func_name [x0:int,x1:str,...];...
 func InitUprobe(targetPid int, settings []InlineHookSetting) { // 打算寻址采用soName+偏移的格式 libsec.so+0x123 ...
+	spec.LoadAndAssign(UprobeCommonObj, getDebugOptForLoad())
 	for _, setting := range settings {
 		uprobeOps := link.UprobeOptions{}
 		process, err := link.OpenExecutable(setting.SoPath)
@@ -94,7 +104,7 @@ func InitUprobe(targetPid int, settings []InlineHookSetting) { // 打算寻址�
 		uprobeOps.Address = setting.Offset
 		uprobeOps.PID = targetPid
 		uprobeOps.Cookie = uint64(setting.reg_read_mask)<<32 | uint64(setting.str_read_mask) // 高32位是寄存器掩码 低32位是字符串掩码
-		res, err := process.Uprobe(setting.symbol, ProbeObjs.CommonUprobe, &uprobeOps)
+		res, err := process.Uprobe(setting.symbol, UprobeCommonObj.CommonUprobe, &uprobeOps)
 		if debug.IsDebug && setting.symbol == "" {
 			setting.symbol = "offset_0x" + strconv.FormatUint(setting.Offset, 16)
 		}
