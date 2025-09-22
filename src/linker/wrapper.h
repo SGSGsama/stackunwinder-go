@@ -7,8 +7,6 @@ struct Data {
   uint64_t regs[31];
   uint64_t sp;
   uint64_t pc;
-  char stackData[65536];
-  uint64_t stackSize;
 };
 char *unwind_Online(int pid, struct Data *data);
 // void unwind_Offline(int pid, struct Data *data);

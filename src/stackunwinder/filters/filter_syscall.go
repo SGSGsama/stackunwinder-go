@@ -1,5 +1,5 @@
 package filters
-
+// 过滤特定syscall
 import (
 	"log"
 	"stackunwinder-go/src/stackunwinder/bpfloader"

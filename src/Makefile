@@ -44,6 +44,7 @@ $(BPF_SKEL): $(wildcard kernel/*.c)
 	-cc "$(BPF_CLANG)" \
 	-cflags "$(BPF_CFLAGS)" \
 	-type sysEnterData_noStack \
+	-type uprobeCommonData \
 	Probes_ ../kernel/probes.c
 	mv stackunwinder/probes_* stackunwinder/bpfloader/
 	cd ..

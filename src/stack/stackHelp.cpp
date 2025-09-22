@@ -65,35 +65,35 @@ std::string readFileToString(const std::string &filePath) {
 }
 extern "C" {
 // 离线栈回溯，不需要中断执行，使用bpf中dump的栈数据，可能出现截断现象，感觉有点sb，不如在线的一根
-void unwind_Offline(int pid, Data *data) {
+// void unwind_Offline(int pid, Data *data) {
 
-  std::unique_ptr<unwindstack::Regs> unwind_regs(prepareReg(data));
-  // std::cout << "arch: " << (int)unwind_regs->Arch() << "\n";
-  if (unwind_regs == NULL) {
-    fprintf(stderr, "Failed to prepare registers\n");
-    return;
-  }
-  std::shared_ptr<unwindstack::Memory> stack =
-      unwindstack::Memory::CreateOfflineMemory(
-          reinterpret_cast<uint8_t *>(data->stackData), data->sp,
-          data->sp + data->stackSize);
-  std::string mapsBuffer;
-  std::unique_ptr<unwindstack::Maps> maps;
-  std::string mapsPath = "/proc/" + std::to_string(pid) + "/maps";
-  mapsBuffer = readFileToString(mapsPath);
-  // std::cout << mapsBuffer << "\n";
-  if (mapsBuffer == "") {
-    fprintf(stderr, "Failed to read maps file: %s\n", mapsPath.c_str());
-    return;
-  }
-  maps.reset(new unwindstack::BufferMaps(mapsBuffer.c_str()));
-  maps->Parse();
-  unwindstack::Unwinder unwinder(512, maps.get(), unwind_regs.get(), stack);
-  unwinder.Unwind();
-  for (size_t i = 0; i < unwinder.NumFrames(); i++) {
-    printf("%s\n", unwinder.FormatFrame(i).c_str());
-  }
-}
+//   std::unique_ptr<unwindstack::Regs> unwind_regs(prepareReg(data));
+//   // std::cout << "arch: " << (int)unwind_regs->Arch() << "\n";
+//   if (unwind_regs == NULL) {
+//     fprintf(stderr, "Failed to prepare registers\n");
+//     return;
+//   }
+//   std::shared_ptr<unwindstack::Memory> stack =
+//       unwindstack::Memory::CreateOfflineMemory(
+//           reinterpret_cast<uint8_t *>(data->stackData), data->sp,
+//           data->sp + data->stackSize);
+//   std::string mapsBuffer;
+//   std::unique_ptr<unwindstack::Maps> maps;
+//   std::string mapsPath = "/proc/" + std::to_string(pid) + "/maps";
+//   mapsBuffer = readFileToString(mapsPath);
+//   // std::cout << mapsBuffer << "\n";
+//   if (mapsBuffer == "") {
+//     fprintf(stderr, "Failed to read maps file: %s\n", mapsPath.c_str());
+//     return;
+//   }
+//   maps.reset(new unwindstack::BufferMaps(mapsBuffer.c_str()));
+//   maps->Parse();
+//   unwindstack::Unwinder unwinder(512, maps.get(), unwind_regs.get(), stack);
+//   unwinder.Unwind();
+//   for (size_t i = 0; i < unwinder.NumFrames(); i++) {
+//     printf("%s\n", unwinder.FormatFrame(i).c_str());
+//   }
+// }
 // 在线栈回溯，实时采样栈数据，需要中断执行防止上下文变化
 char *unwind_Online(int pid, Data *data) {
   std::unique_ptr<unwindstack::Regs> unwind_regs(prepareReg(data));

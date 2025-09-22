@@ -1,11 +1,16 @@
 package utilis
 
+// #include "../../linker/wrapper.h"
+import "C"
 import (
 	"fmt"
+	"log"
 	"os"
 	"stackunwinder-go/src/stackunwinder/bpfloader"
 	"stackunwinder-go/src/stackunwinder/debug"
+	"strings"
 	"unicode"
+	"unsafe"
 
 	"github.com/cilium/ebpf"
 )
@@ -16,19 +21,20 @@ func getSyscallId(constID *ebpf.Variable) uint64 {
 	// log.Printf("%d %d\n",constID.Size(),id);
 	return uint64(id)
 }
-func printUnkBytes(data []uint8, len int, tag string) {
+func PrintUnkBytes(data []uint8, len int, tag string) string {
 	// 这里如果是可打印字符就打印字符，不然就打印hex
+	res := ""
 	debug.Debug("printBytes: len: %d\n", len)
 	len = min(len, 64) // 先设置最大打印64个byte，后续添加上限调整功能
-	fmt.Printf("%s ", tag)
+	res += fmt.Sprintf("%s ", tag)
 	for i := 0; i < len; i++ {
 		if unicode.IsPrint(rune(data[i])) {
-			fmt.Printf("%c", data[i])
+			res += fmt.Sprintf("%c", data[i])
 		} else {
-			fmt.Printf("\\x%02x", data[i])
+			res += fmt.Sprintf("\\x%02x", data[i])
 		}
 	}
-	fmt.Println()
+	return res
 }
 
 // func setStackAddrTable(pid int) {
@@ -97,16 +103,16 @@ func PrintSyscallInfo(data *bpfloader.Probes_SysEnterDataNoStack) { // 几个常
 		fmt.Printf("[openat] dfd: %d, filename(addr: %x): %s, flags: 0x%x, mode: 0x%x\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[2], data.Regs[3])
 	case getSyscallId(ProbeObjs.Probes_Variables.READ):
 		fmt.Printf("[read] fd: %d, buf(addr: %x), count: %d\n", data.Regs[0], data.Regs[1], data.Regs[2])
-		printUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[read] buf:")
+		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[read] buf:"))
 	case getSyscallId(ProbeObjs.Probes_Variables.WRITE):
 		fmt.Printf("[write] fd: %d, buf(addr: %x), count: %d\n", data.Regs[0], data.Regs[1], data.Regs[2])
-		printUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[write] buf:")
+		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[write] buf:"))
 	case getSyscallId(ProbeObjs.Probes_Variables.PREAD64):
 		fmt.Printf("[pread64] fd: %d, buf(addr: %x), count: %d, offset: 0x%x\n", data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3])
-		printUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pread64] buf:")
+		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pread64] buf:"))
 	case getSyscallId(ProbeObjs.Probes_Variables.PWRITE64):
 		fmt.Printf("[pwrite64] fd: %d, buf(addr: %x), count: %d, offset: 0x%x\n", data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3])
-		printUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pwrite64] buf:")
+		fmt.Println(PrintUnkBytes(data.ArgBuf[0][:], int(data.Regs[2]), "[pwrite64] buf:"))
 	case getSyscallId(ProbeObjs.Probes_Variables.READLINKAT):
 		fmt.Printf("[readlinkat] dfd: %d, pathname(addr: %x): %s, buf(addr: %x), buflen: %d\n", data.Regs[0], data.Regs[1], data.ArgBuf[0], data.Regs[2], data.Regs[3])
 	case getSyscallId(ProbeObjs.Probes_Variables.NEWFSTATAT):
@@ -136,4 +142,49 @@ func PrintSyscallInfo(data *bpfloader.Probes_SysEnterDataNoStack) { // 几个常
 	default:
 		fmt.Printf("[syscall] id: 0x%x, x0: 0x%x, x1: 0x%x, x2: 0x%x, x3: 0x%x, x4: 0x%x, x5: 0x%x\n", data.SyscallId, data.Regs[0], data.Regs[1], data.Regs[2], data.Regs[3], data.Regs[4], data.Regs[5])
 	}
+}
+
+func ParseMapsToGetBinaryPath(pid int, settingsToFill []bpfloader.InlineHookSetting) {
+	maps, err := os.ReadFile(fmt.Sprintf("/proc/%d/maps", pid)) // 直接读maps获取内存布局
+	if err != nil {
+		log.Fatal("Error reading maps file:", err)
+	}
+	lines := strings.Split(string(maps), "\n")
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		debug.Debug("parts: %v\n", parts)
+		if len(parts) < 6 { // 匿名的跳过
+			continue
+		}
+		if strings.Contains(parts[1], "x") == false { // 没有执行权限的跳过
+			continue
+		}
+		memoryName := parts[5]
+		for _, settings := range settingsToFill {
+			if settings.SoPath != "" {
+				continue // 已经有路径了就跳过
+			}
+			if strings.Contains(memoryName, settings.SoName) {
+				settings.SoPath = memoryName
+				debug.Debug("found so %s path: %s\n", settings.SoName, settings.SoPath)
+			}
+		}
+	}
+}
+
+type GoUnwindData interface {
+	GetRegs() *[31]uint64
+	GetPc() uint64
+	GetSp() uint64
+}
+
+func GetStackUnwindGoWrapper(goData GoUnwindData, pid int) string {
+	var tmp C.struct_Data
+	regs := goData.GetRegs()
+	for i := 0; i < 31; i++ {
+		tmp.regs[i] = C.uint64_t(regs[i])
+	}
+	tmp.pc = C.uint64_t(goData.GetPc())
+	tmp.sp = C.uint64_t(goData.GetSp())
+	return C.GoString(C.unwind_Online(C.int(pid), (*C.struct_Data)(unsafe.Pointer(&tmp))))
 }

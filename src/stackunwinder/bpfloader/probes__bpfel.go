@@ -26,6 +26,17 @@ type Probes_SysEnterDataNoStack struct {
 	SigState  int64
 }
 
+type Probes_UprobeCommonData struct {
+	_    structs.HostLayout
+	Regs [31]uint64
+	Pc   uint64
+	Sp   uint64
+	Tid  uint32
+	Buf  [8][1024]uint8
+	_    [4]byte
+	Mask uint64
+}
+
 // LoadProbes_ returns the embedded CollectionSpec for Probes_.
 func LoadProbes_() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Probes_Bytes)
@@ -68,7 +79,8 @@ type Probes_Specs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type Probes_ProgramSpecs struct {
-	SysEnter *ebpf.ProgramSpec `ebpf:"sys_enter"`
+	CommonUprobe *ebpf.ProgramSpec `ebpf:"common_uprobe"`
+	SysEnter     *ebpf.ProgramSpec `ebpf:"sys_enter"`
 }
 
 // Probes_MapSpecs contains maps before they are loaded into the kernel.
@@ -79,6 +91,7 @@ type Probes_MapSpecs struct {
 	SysEnterRb         *ebpf.MapSpec `ebpf:"sysEnterRb"`
 	TargetSyscalls     *ebpf.MapSpec `ebpf:"targetSyscalls"`
 	TidStateMap        *ebpf.MapSpec `ebpf:"tidStateMap"`
+	UprobeRb           *ebpf.MapSpec `ebpf:"uprobeRb"`
 }
 
 // Probes_VariableSpecs contains global variables before they are loaded into the kernel.
@@ -129,6 +142,7 @@ type Probes_Maps struct {
 	SysEnterRb         *ebpf.Map `ebpf:"sysEnterRb"`
 	TargetSyscalls     *ebpf.Map `ebpf:"targetSyscalls"`
 	TidStateMap        *ebpf.Map `ebpf:"tidStateMap"`
+	UprobeRb           *ebpf.Map `ebpf:"uprobeRb"`
 }
 
 func (m *Probes_Maps) Close() error {
@@ -137,6 +151,7 @@ func (m *Probes_Maps) Close() error {
 		m.SysEnterRb,
 		m.TargetSyscalls,
 		m.TidStateMap,
+		m.UprobeRb,
 	)
 }
 
@@ -168,11 +183,13 @@ type Probes_Variables struct {
 //
 // It can be passed to LoadProbes_Objects or ebpf.CollectionSpec.LoadAndAssign.
 type Probes_Programs struct {
-	SysEnter *ebpf.Program `ebpf:"sys_enter"`
+	CommonUprobe *ebpf.Program `ebpf:"common_uprobe"`
+	SysEnter     *ebpf.Program `ebpf:"sys_enter"`
 }
 
 func (p *Probes_Programs) Close() error {
 	return _Probes_Close(
+		p.CommonUprobe,
 		p.SysEnter,
 	)
 }

@@ -7,7 +7,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-#define SIGSTOP 19
 
 SEC("tp_btf/sys_enter")
 int BPF_PROG(sys_enter, struct pt_regs *regs, long id) {

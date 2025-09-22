@@ -6,19 +6,11 @@ struct {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
   __uint(max_entries, PAGE_SIZE * 65536);
 } sysEnterRb SEC(".maps");
-// const struct sysEnterData *unusedsysEnterData __attribute__((unused));
 
-// struct memoryCheckCtx {
-//   bool found;
-//   int pc;
-// };
-// #define MAX_MEMORY_RANGE 128
-// struct {
-//   __uint(type, BPF_MAP_TYPE_ARRAY);
-//   __uint(max_entries, MAX_MEMORY_RANGE);
-//   __type(key, u32);
-//   __type(value, struct memoryRange);
-// } targetMemoryRange SEC(".maps");
+struct {
+  __uint(type, BPF_MAP_TYPE_RINGBUF);
+  __uint(max_entries, PAGE_SIZE * 65536);
+} uprobeRb SEC(".maps"); // 传输uprobeCommon数据
 
 struct {
   __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -33,6 +25,7 @@ struct {
   __type(key, u32);
   __type(value, u64);
 } stackBaseAddrTable SEC(".maps");
+
 
 struct {
   __uint(type, BPF_MAP_TYPE_HASH);

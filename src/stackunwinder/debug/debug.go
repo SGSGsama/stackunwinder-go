@@ -1,7 +1,8 @@
 package debug
 
 import (
-	"log"
+	"fmt"
+
 	"os"
 )
 
@@ -9,7 +10,7 @@ var IsDebug bool = false
 
 func Debug(format string, args ...interface{}) {
 	if IsDebug {
-		log.Printf(format, args...)
+		fmt.Printf(format, args...)
 	}
 }
 func SetDebugMode(_isDebug bool) {

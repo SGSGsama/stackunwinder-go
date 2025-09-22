@@ -113,9 +113,7 @@ read_nostack_data(struct pt_regs *regs, long id,
   data->pc = regs->pc;
   data->sp = regs->sp;
   data->tid = bpf_get_current_pid_tgid() & 0xFFFFFFFF;
-  for (int i = 0; i < 31; i++) {
-    data->regs[i] = regs->regs[i];
-  }
+  bpf_probe_read_kernel(data->regs, sizeof(data->regs), regs->regs);
   bpf_get_current_comm(data->comm, sizeof(data->comm));
   data->syscall_id = id;
   bufRead(data->argBuf, data->regs, id);
@@ -144,4 +142,29 @@ u64 calc_syscall_hash(struct pt_regs *regs) {
       &data, min(aarch64_syscall_args_count[min(regs->regs[8], 512)] + 1, 8));
 
   return hash;
+}
+bool read_uprobe_data(struct pt_regs *regs, struct uprobeCommonData *data) {
+  CheckNoNULL(regs);
+  CheckNoNULL(data);
+  data->pc = regs->pc;
+  data->sp = regs->sp;
+  data->tid = bpf_get_current_pid_tgid() & 0xFFFFFFFF;
+  bpf_probe_read_kernel(data->regs, sizeof(data->regs), regs->regs);
+  u64 regCollectSettingMask = bpf_get_attach_cookie(
+      regs); // 直接拿bpf_cookie传配置掩码，这样正好解决了字符串不好作为hashmap映射的问题
+  data->mask = regCollectSettingMask;
+  u8 strCollectCnt = 0;
+  if (regCollectSettingMask != 0) {
+    // bpf_loop(31, reg_str_read_helper, data, 0);
+    for (int i = 0; i < 31 && strCollectCnt < 8;
+         i++) { // 这里只采前8个设置为采集的，多余的直接抛弃
+      if (regCollectSettingMask & (1 << i)) {
+        bpf_probe_read_user(data->buf[strCollectCnt],
+                            sizeof(data->buf[strCollectCnt]),
+                            (void *)(data->regs[i]));
+        strCollectCnt++;
+      }
+    }
+  }
+  return 0;
 }
