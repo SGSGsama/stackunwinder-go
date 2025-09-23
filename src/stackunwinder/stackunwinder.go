@@ -42,7 +42,7 @@ func start_UprobeCommonTrace() {
 	bpfloader.LoadRb(&bpfloader.UprobeCommonRb, bpfloader.UprobeCommonObj.UprobeRb)
 	defer bpfloader.CloseRb(&bpfloader.UprobeCommonRb)
 	debug.Debug("uprobe rb loaded\n")
-
+	eventReader.Event_reader_common_uprobe()
 }
 func Main() {
 	initLibs()

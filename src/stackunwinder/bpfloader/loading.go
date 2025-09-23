@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"stackunwinder-go/src/stackunwinder/debug"
+	mapsparser "stackunwinder-go/src/stackunwinder/mapsParser"
 	"strconv"
 
 	"github.com/cilium/ebpf"
@@ -83,42 +84,58 @@ func CloseRb(reader **ringbuf.Reader) {
 
 type InlineHookSetting struct {
 	SoName        string // 二进制文件名
-	SoPath        string // 二进制文件路径，这个提不提供都无所谓，不提供就去maps里解析
 	Offset        uint64 // 相对二进制文件起始位置的偏移
-	symbol        string // 符号名可选，同时填符号名和偏移优先使用偏移
-	str_read_mask uint32 // 读取字符串的掩码
-	reg_read_mask uint32 // 读取寄存器的掩码(目前先这样传配置了，不然又得新开map，正好u64塞得下，这个放高32位)
+	Symbol        string // 符号名可选，同时填符号名和偏移优先使用偏移
+	Str_read_mask uint32 // 读取字符串的掩码
+	Reg_read_mask uint32 // 读取寄存器的掩码(目前先这样传配置了，不然又得新开map，正好u64塞得下，这个放高32位)
 }
 
 // 考虑下面几种配置方案 目前感觉就先支持int和str两种类型的解析就够了
 // libsec.so+0x1234 [x0:int,x1:str,....];...
 // libsec.so:func_name [x0:int,x1:str,...];...
 func InitUprobe(targetPid int, settings []InlineHookSetting) { // 打算寻址采用soName+偏移的格式 libsec.so+0x123 ...
-	spec.LoadAndAssign(UprobeCommonObj, getDebugOptForLoad())
+	debug.Debug("%+v\n", settings)
+	// os.Exit(0)
+	if err := spec.LoadAndAssign(UprobeCommonObj, getDebugOptForLoad()); err != nil {
+		fmt.Printf("loading uprobe spec err %v\n", err)
+		os.Exit(0)
+	}
+	debug.Debug("uprobe bpf obj loaded\n")
+	// multiUprobeOpts := link.UprobeMultiOptions{}
+	// multiUprobeOpts.PID = uint32(targetPid)
+
 	for _, setting := range settings {
 		uprobeOps := link.UprobeOptions{}
-		process, err := link.OpenExecutable(setting.SoPath)
+		process, err := link.OpenExecutable(mapsparser.GetSoPath(setting.SoName, targetPid))
 		if err != nil {
 			log.Fatal(err)
 		}
-		uprobeOps.Address = setting.Offset
 		uprobeOps.PID = targetPid
-		uprobeOps.Cookie = uint64(setting.reg_read_mask)<<32 | uint64(setting.str_read_mask) // 高32位是寄存器掩码 低32位是字符串掩码
-		res, err := process.Uprobe(setting.symbol, UprobeCommonObj.CommonUprobe, &uprobeOps)
-		if debug.IsDebug && setting.symbol == "" {
-			setting.symbol = "offset_0x" + strconv.FormatUint(setting.Offset, 16)
+		uprobeOps.Cookie = uint64(setting.Reg_read_mask)<<32 | uint64(setting.Str_read_mask) // 高32位是寄存器掩码 低32位是字符串掩码
+		var res link.Link
+		if setting.Symbol == "" {
+			// debug.Debug("so base addr %s 0x%x\n", setting.SoName, mapsparser.SoBaseAddr[setting.SoName])
+			uprobeOps.Address = mapsparser.ConvertSimpleOffsetToUprobeOffset(setting.SoName, setting.Offset)
+			debug.Debug("uprobe addr 0x%x\n", uprobeOps.Address)
+			res, err = process.Uprobe("", UprobeCommonObj.CommonUprobe, &uprobeOps)
+		} else {
+			res, err = process.Uprobe(setting.Symbol, UprobeCommonObj.CommonUprobe, &uprobeOps)
+		}
+		if debug.IsDebug && setting.Symbol == "" {
+			setting.Symbol = "offset_0x" + strconv.FormatUint(setting.Offset, 16)
 		}
 		if err != nil {
-			if setting.symbol == "" {
-				setting.symbol = "offset_0x" + strconv.FormatUint(setting.Offset, 16)
+			if setting.Symbol == "" {
+				setting.Symbol = "offset_0x" + strconv.FormatUint(setting.Offset, 16)
 			}
-			fmt.Printf("err uprobe [%s]", setting.symbol)
+			fmt.Printf("err uprobe [%s] %v\n", setting.Symbol, err)
 			os.Exit(0)
 		}
-		debug.Debug("uprobe [%s]attached\n", setting.symbol)
+		debug.Debug("uprobe [%s]attached\n", setting.Symbol)
 
 		UprobesCommon = append(UprobesCommon, res)
 	}
+
 }
 func CloseUprobesCommon() {
 	for _, link := range UprobesCommon {
