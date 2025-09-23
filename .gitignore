@@ -12,3 +12,8 @@ src/stackunwinder/bpfloader/probes__bpfel.o
 
 # Go build cache
 .cache/
+
+# Environment configuration
+env.sh
+*.env
+.env*
