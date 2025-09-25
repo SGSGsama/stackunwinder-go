@@ -19,7 +19,7 @@ import (
 // 这里似乎可以直接用协程？对于目标程序而言每次触发检测点都会断下，所以这里其实在信号上不会有异步问题，因此不用对信号发送机制上锁
 // 实际上似乎变成了多线程轮询的效果，效率肯定不如stackplz
 func Event_reader_sys_enter() {
-	debug.Debug("start reading sys_enter data\n")
+	fmt.Printf("start reading sys_enter data\n")
 	process, err := os.FindProcess(int(options.TargetPid))
 	if err != nil {
 		fmt.Println("find process err: ", err)

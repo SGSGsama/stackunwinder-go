@@ -31,9 +31,13 @@ int common_uprobe(struct pt_regs *ctx) {
     for (int i = 0; i < 31 && strCollectCnt < 8;
          i++) { // 这里只采前8个设置为采集的，多余的直接抛弃
       if (data->mask & (1 << i)) {
+
         bpf_probe_read_user(data->buf[strCollectCnt],
                             sizeof(data->buf[strCollectCnt]),
                             (void *)(data->regs[i]));
+        bpf_printk("collect str for x%d ('0x%02x,0x%02x,0x%02x')\n", i,
+                   data->buf[strCollectCnt][0], data->buf[strCollectCnt][1],
+                   data->buf[strCollectCnt][2]);
         strCollectCnt++;
       }
     }

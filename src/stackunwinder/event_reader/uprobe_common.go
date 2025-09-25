@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"stackunwinder-go/src/stackunwinder/bpfloader"
-	"stackunwinder-go/src/stackunwinder/debug"
 	"stackunwinder-go/src/stackunwinder/options"
 	"stackunwinder-go/src/stackunwinder/utilis"
 	"syscall"
@@ -14,7 +13,7 @@ import (
 
 // 基本可以照搬sys_enter_reader ，把数据解析写一下
 func Event_reader_common_uprobe() {
-	debug.Debug("start reading uprobe common data\n")
+	fmt.Printf("start reading uprobe common data\n")
 	process, err := os.FindProcess(int(options.TargetPid))
 	if err != nil {
 		fmt.Println("FindProcess error:", err)
@@ -39,7 +38,7 @@ func Event_reader_common_uprobe() {
 			if regRead&(1<<i) != 0 {
 				res += fmt.Sprintf("x%d: %x ,", i, uprobeCommonData.Regs[i])
 				if strRead&(1<<i) != 0 && strReadCount < 8 {
-					strRes += fmt.Sprintf("x%d:", i) + utilis.PrintUnkBytes(uprobeCommonData.Buf[strRead][:], 64, "") + "\n"
+					strRes += fmt.Sprintf("x%d:", i) + utilis.PrintUnkBytes(uprobeCommonData.Buf[strReadCount][:], 64, "") + "\n"
 					strReadCount++
 				}
 			}
