@@ -24,7 +24,6 @@ func initLibs() {
 func start_SysEnterTrace() {
 	bpfloader.AttachTp_sysEnter()
 	defer bpfloader.CloseTp_sysEnter()
-	debug.Debug("tp attached\n")
 
 	bpfloader.LoadRb(&bpfloader.SysEnterRb, bpfloader.SysEnterObj.SysEnterRb)
 	defer bpfloader.CloseRb(&bpfloader.SysEnterRb)
@@ -48,7 +47,6 @@ func Main() {
 	initLibs()
 	options.InitOptions()
 	bpfloader.DoCommonBpfInit()
-
 	// 直接无脑协程吧，似乎没问题
 	if options.TargetSyscall != "" {
 		go start_SysEnterTrace()

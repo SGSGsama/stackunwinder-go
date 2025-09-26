@@ -7,7 +7,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-
 SEC("tp_btf/sys_enter")
 int BPF_PROG(sys_enter, struct pt_regs *regs, long id) {
   // bpf_printk("pid : %d   target : %d \n", (bpf_get_current_pid_tgid() >> 32),
@@ -31,6 +30,8 @@ int BPF_PROG(sys_enter, struct pt_regs *regs, long id) {
   u64 *lastHash = bpf_map_lookup_elem(&tidStateMap, &tid);
   u64 hash = calc_syscall_hash(regs);
   bpf_printk("syscall hash: %llu ", hash);
+  bpf_printk("x0: %llx x1: %llx x2: %llx x3:\n", regs->regs[0], regs->regs[1],
+             regs->regs[2]);
   if (lastHash != NULL && *lastHash == hash)
     return 0;
   bpf_map_update_elem(&tidStateMap, &tid, &hash, BPF_ANY);

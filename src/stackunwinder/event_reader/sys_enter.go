@@ -38,6 +38,7 @@ func Event_reader_sys_enter() {
 			continue
 		}
 		if !filters.CheckMemoryRange(sysEnterData.Pc) { // 这里如果不在我们关注的范围内就直接跳过就完事了
+			debug.Debug("skip pc %x\n", sysEnterData.Pc)
 			if err := process.Signal(syscall.SIGCONT); err != nil {
 				fmt.Printf("fail to resume process: %v\n", err)
 			}

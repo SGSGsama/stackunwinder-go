@@ -4,6 +4,7 @@
 #include "maps.c"
 #include "syscall_regs_use.h"
 #include "vmlinux.h"
+#include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #define CheckNoNULL(ptr)                                                       \
@@ -130,8 +131,10 @@ u64 FNV_1a_64(void *data, size_t len) {
   }
   return hash;
 }
-u64 calc_syscall_hash(struct pt_regs *regs) {
-
+__attribute__((always_inline)) u64 calc_syscall_hash(struct pt_regs *regs) {
+  if (regs == NULL) {
+    return 0;
+  }
   u64 data[8] = {0};
   data[0] = regs->regs[8];
   data[1] = regs->sp;
@@ -140,6 +143,20 @@ u64 calc_syscall_hash(struct pt_regs *regs) {
   }
   u64 hash = FNV_1a_64(
       &data, min(aarch64_syscall_args_count[min(regs->regs[8], 512)] + 1, 8));
-
-  return hash;
+  u64 try_get_more_sample[8] = {0, 0, 0, 0};
+  try_get_more_sample[4] = bpf_probe_read_user_str(
+      try_get_more_sample, sizeof(u64), (void *)(regs->regs[0]));
+  try_get_more_sample[5] = bpf_probe_read_user_str(
+      try_get_more_sample + 1, sizeof(u64), (void *)(regs->regs[1]));
+  try_get_more_sample[6] = bpf_probe_read_user_str(
+      try_get_more_sample + 2, sizeof(u64), (void *)(regs->regs[2]));
+  try_get_more_sample[7] = bpf_probe_read_user_str(
+      try_get_more_sample + 3, sizeof(u64), (void *)(regs->regs[3]));
+  bpf_printk("extra hash: %llx %llx %llx %llx\n", try_get_more_sample[0],
+             try_get_more_sample[1], try_get_more_sample[2],
+             try_get_more_sample[3]);
+  bpf_printk("extra hash code: %lld %lld %lld %lld\n", try_get_more_sample[4],
+             try_get_more_sample[5], try_get_more_sample[6],
+             try_get_more_sample[7]);
+  return hash ^ FNV_1a_64(try_get_more_sample, 8);
 }

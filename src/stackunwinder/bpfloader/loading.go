@@ -14,7 +14,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 )
 
-var BpfVar *Probes_Variables = &Probes_Variables{}                  // save the bpf variable specs globally
+var BpfConst *Probes_Variables = &Probes_Variables{}                // save the bpf variable specs globally
 var SysEnterObj *sysEnterObjsType = &sysEnterObjsType{}             // 保存sys_enter相关的program和map对象
 var SysEnterTp link.Link = nil                                      // 用于跟踪sys_enter的附加点
 var SysEnterRb *ringbuf.Reader = nil                                // 用于读取sys_enter的ringbuf
@@ -47,15 +47,19 @@ func DoCommonBpfInit() { //加载bpf变量并解锁内存限制，，初始化bp
 	if err != nil {
 		log.Fatalf("loading spec: %v", err)
 	}
-	if err := LoadProbes_Objects(BpfVar, getDebugOptForLoad()); err != nil {
+	if err := LoadProbes_Objects(BpfConst, getDebugOptForLoad()); err != nil {
 		log.Fatalf("loading objects: %v", err)
 	}
+
 	debug.Debug("bpf var loaded\n")
 }
 
 func AttachTp_sysEnter() {
 	var err error
-	spec.LoadAndAssign(SysEnterObj, getDebugOptForLoad())
+	err = spec.LoadAndAssign(SysEnterObj, getDebugOptForLoad())
+	if err != nil {
+		log.Fatal(err)
+	}
 	SysEnterTp, err = link.AttachTracing(link.TracingOptions{Program: SysEnterObj.SysEnter, AttachType: ebpf.AttachTraceRawTp}) // attach to sys_enter
 	if err != nil {
 		log.Fatal(err)
@@ -101,6 +105,7 @@ func InitUprobe(targetPid int, settings []InlineHookSetting) { // 打算寻址�
 		os.Exit(0)
 	}
 	debug.Debug("uprobe bpf obj loaded\n")
+
 	// multiUprobeOpts := link.UprobeMultiOptions{}
 	// multiUprobeOpts.PID = uint32(targetPid)
 

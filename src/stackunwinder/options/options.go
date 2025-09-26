@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	TargetPid         uint
+	TargetPid         uint32
 	IsDebug           bool
 	TargetSyscall     string
 	TargetLib         string
@@ -28,7 +28,7 @@ Options:
   -pid, -p        Target process id (required)
   -debug, -d      Enable debug mode
   -syscall, -s    Target syscall name
-  -lib, -l        Target library name (default value libc.so) , anonymous memory segment are auto added
+  -lib, -l        Target library name (default all excutable segment) , anonymous memory segment are auto added
   -stack          Enable stack unwinding
   -u -uprobe	  Uprobe inline hook setting (support reg:x0~x30,readType:int,str(means byte dump) )   
 			      format:
@@ -37,8 +37,9 @@ Options:
 `
 		println(helpText)
 	}
-	flag.UintVar(&TargetPid, "pid", 0, "Target process id")
-	flag.UintVar(&TargetPid, "p", 0, "Target process id")
+	var TargetPid_ uint
+	flag.UintVar(&TargetPid_, "pid", 0, "Target process id")
+	flag.UintVar(&TargetPid_, "p", 0, "Target process id")
 
 	flag.BoolVar(&IsDebug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&IsDebug, "d", false, "Enable debug mode")
@@ -55,7 +56,7 @@ Options:
 	flag.StringVar(&UprobeSetting, "uprobe", "", "uprobe hook setting")
 
 	flag.Parse()
-
+	TargetPid = uint32(TargetPid_)
 	validateRequiredFlags()
 
 	debug.SetDebugMode(IsDebug)
@@ -68,7 +69,7 @@ Options:
 func SetSysEnterSettings() {
 	filters.SetTargetLib(uint32(TargetPid), strings.Split(TargetLib, ","))
 	filters.SetTargetSyscall(strings.Split(TargetSyscall, ","))
-	bpfloader.BpfVar.TargetPid.Set(uint32(TargetPid))
+	bpfloader.SysEnterObj.TargetPid.Set(TargetPid)
 }
 func validateRequiredFlags() {
 	if TargetPid == 0 {

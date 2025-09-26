@@ -36,7 +36,7 @@ func PrintUnkBytes(data []uint8, len int, tag string) string {
 }
 
 func PrintSyscallInfo(data *bpfloader.Probes_SysEnterDataNoStack) { // 几个常用的syscall手动设置下打印格式
-	ProbeVar := bpfloader.BpfVar
+	ProbeVar := bpfloader.BpfConst
 
 	fmt.Printf("[pc: %x sp: %x tid: %d]", data.Pc, data.Sp, data.Tid)
 	switch data.SyscallId {
